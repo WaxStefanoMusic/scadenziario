@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scadenziario RIBA e SDD — v3.0 (Web)</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<style>
+  :root{
+    --bg-main:#0D1B2A; --bg-panel:#152535; --bg-log:#091726; --bg-card:#112030;
+    --bg-stat:#0A1F33; --fg-white:#FFFFFF; --fg-muted:#78909C; --fg-log:#A5D6A7;
+    --fg-label:#90A4AE; --accent:#1E88E5; --btn-load:#1565C0; --btn-open:#2E7D32;
+    --btn-clr:#37474F; --green:#2E7D32; --red:#B71C1C; --navy:#1A3C5E; --orange:#E65100;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg-main); color:var(--fg-white);
+    font-family:Arial,Helvetica,sans-serif; font-size:14px;
+  }
+  .accent-bar{height:3px; background:var(--accent);}
+  header{padding:14px 24px; display:flex; align-items:flex-end; flex-wrap:wrap; gap:8px;}
+  header .title{font-size:26px; font-weight:bold;}
+  header .subtitle{font-size:12px; color:var(--fg-muted); padding-bottom:3px;}
+  header .year{margin-left:auto; font-size:30px; font-weight:bold; color:#1E3A52;}
+  /* Anno editabile: stesso aspetto del badge, ma diventa interattivo su hover/focus */
+  header input.year{
+    background:transparent; border:none; padding:0 2px; width:4.6ch;
+    text-align:right; font-family:inherit; cursor:text; border-bottom:2px solid transparent;
+  }
+  header input.year:hover{ color:#2E5A82; }
+  header input.year:focus{ color:var(--accent); outline:none; border-bottom-color:var(--accent); }
+  .divider{height:1px; background:#1E3A52;}
+  .toolbar{padding:10px 24px; background:var(--bg-panel); display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+  button.tb{
+    border:0; border-radius:4px; padding:9px 18px; color:#fff; font-weight:bold;
+    font-size:13px; cursor:pointer; font-family:inherit;
+  }
+  button.tb:hover{filter:brightness(1.12);}
+  .b-load{background:var(--btn-load);} .b-open{background:var(--btn-open);} .b-clr{background:var(--btn-clr);}
+  .panel{padding:8px 24px; background:var(--bg-card); display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .panel label{color:var(--fg-label); font-size:13px; white-space:nowrap;}
+  input[type=text]{
+    flex:1; min-width:200px; background:var(--bg-panel); color:#fff; border:1px solid #1E3A52;
+    border-radius:3px; padding:7px 10px; font-size:13px; font-family:inherit;
+  }
+  .tabs{display:flex; gap:2px; padding:0 24px; background:var(--bg-main); border-bottom:1px solid #1E3A52; flex-wrap:wrap;}
+  .tab{
+    padding:9px 18px; cursor:pointer; color:var(--fg-muted); font-weight:bold; font-size:13px;
+    border:1px solid transparent; border-bottom:none; border-radius:6px 6px 0 0;
+  }
+  .tab.active{background:var(--bg-card); color:#fff; border-color:#1E3A52;}
+  .view{padding:14px 24px; display:none;}
+  .view.active{display:block;}
+  .table-wrap{overflow:auto; border:1px solid #1E3A52; border-radius:4px; max-height:60vh;}
+  table{border-collapse:collapse; width:100%; font-size:12px; white-space:nowrap;}
+  th,td{border:1px solid #24405a; padding:5px 8px; text-align:left;}
+  thead th{position:sticky; top:0; background:#0D47A1; color:#fff; z-index:2; font-size:11px;}
+  thead tr.group th{background:var(--navy); text-align:center; font-size:11px;}
+  tbody tr:nth-child(even){background:#0f1f30;}
+  tbody tr:nth-child(odd){background:#0c1925;}
+  td.num{text-align:right; font-variant-numeric:tabular-nums;}
+  td.eur{text-align:right; color:#81C784; font-weight:bold; font-variant-numeric:tabular-nums;}
+  .ced{color:#81C784; font-weight:bold;} .ces{color:#EF9A9A; font-weight:bold;}
+  .mono{font-family:'Courier New',monospace; font-size:11px; color:var(--fg-muted);}
+  .badge{padding:2px 7px; border-radius:10px; font-size:10px; font-weight:bold;}
+  .b-riba{background:#1B5E20; color:#A5D6A7;} .b-sepa{background:#E65100; color:#FFE0B2;}
+  .month-bar{display:inline-block; height:12px; background:var(--accent); border-radius:2px; vertical-align:middle;}
+  .cards{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px;}
+  .card{background:var(--bg-card); border:1px solid #1E3A52; border-radius:6px; padding:12px 16px; min-width:150px;}
+  .card .lbl{color:var(--fg-label); font-size:11px;} .card .val{font-size:20px; font-weight:bold; margin-top:4px;}
+  .month-block{margin-bottom:18px;}
+  .month-head{background:#1565C0; padding:8px 14px; font-weight:bold; border-radius:4px 4px 0 0;}
+  /* Tabelle dettaglio mese: layout fisso così TUTTE le colonne (Cessionario incluso)
+     restano allineate da un mese all'altro, indipendentemente dal contenuto. */
+  table.detail-table{table-layout:fixed;}
+  table.detail-table th, table.detail-table td{white-space:normal; overflow-wrap:anywhere;}
+  .empty{padding:24px; color:var(--fg-muted); font-style:italic; text-align:center;}
+  /* Log */
+  .log-section{padding:10px 24px;}
+  .log-title{color:var(--fg-label); font-weight:bold; font-size:13px; margin-bottom:4px;}
+  .log-title .dot{color:var(--fg-log);}
+  #log{
+    background:var(--bg-log); border:1px solid #1E3A52; border-radius:4px; color:var(--fg-log);
+    font-family:'Courier New',monospace; font-size:12px; padding:10px; height:160px; overflow:auto;
+    white-space:pre; line-height:1.5;
+  }
+  .statusbar{background:var(--bg-stat); padding:6px 16px; display:flex; justify-content:space-between; font-size:12px; color:var(--fg-label); border-top:1px solid #1E3A52;}
+  #drop-hint{padding:30px; text-align:center; color:var(--fg-muted); border:2px dashed #1E3A52; border-radius:8px; margin:14px 24px;}
+  .drag-over #drop-hint{border-color:var(--accent); color:var(--accent);}
+</style>
+</head>
+<body>
+<div class="accent-bar"></div>
+<header>
+  <div class="title">Scadenziario RIBA e SDD</div>
+  <div class="subtitle">&nbsp;—&nbsp; XML / P7M &nbsp;|&nbsp; RIBA (MP12) · SEPA Direct Debit (MP19) &nbsp;|&nbsp; Scadenzario mensile</div>
+  <input id="annoInput" class="year" value="2026" maxlength="4" inputmode="numeric"
+         title="Clicca per modificare l'anno">
+</header>
+<div class="divider"></div>
+
+<div class="toolbar">
+  <button class="tb b-load" id="btnLoad">📄&nbsp;&nbsp;Carica File XML / P7M</button>
+  <button class="tb b-load" id="btnLoadDir">📂&nbsp;&nbsp;Carica Cartella</button>
+  <button class="tb b-open" id="btnExport">📊&nbsp;&nbsp;Esporta Excel</button>
+  <button class="tb b-clr" id="btnClear">🗑&nbsp;&nbsp;Pulisci</button>
+  <input type="file" id="fileInput" multiple accept=".xml,.p7m,.XML,.P7M" style="display:none">
+  <input type="file" id="dirInput" webkitdirectory directory multiple style="display:none">
+</div>
+
+<div class="panel">
+  <label>💾&nbsp;&nbsp;Nome file Excel:</label>
+  <input type="text" id="outName" value="Scadenziario RIBA e SDD.xlsx">
+  <span id="counter" style="color:var(--fg-label);font-size:12px;"></span>
+</div>
+
+<div id="drop-hint">Trascina qui i file XML / P7M (o un'intera cartella) oppure usa i pulsanti «Carica File» / «Carica Cartella».</div>
+
+<div class="tabs">
+  <div class="tab active" data-view="v1">📋 Trascrizioni</div>
+  <div class="tab" data-view="v2">💳 RIBE / SEPA</div>
+  <div class="tab" data-view="v3">📅 RIBA × Mesi</div>
+  <div class="tab" data-view="vlog">🖥 Log</div>
+</div>
+
+<div class="view active" id="v1"><div class="empty">Nessuna fattura caricata.</div></div>
+<div class="view" id="v2"><div class="empty">Nessuna fattura caricata.</div></div>
+<div class="view" id="v3"><div class="empty">Nessuna fattura caricata.</div></div>
+<div class="view" id="vlog">
+  <div class="log-section">
+    <div class="log-title"><span class="dot">●</span>&nbsp;&nbsp;Log elaborazione</div>
+    <div id="log"></div>
+  </div>
+</div>
+
+<div class="statusbar">
+  <span id="status">Pronto — Seleziona i file XML o P7M</span>
+  <span>Web edition · interamente locale nel browser</span>
+</div>
+
+<script>
+"use strict";
+// ─── COSTANTI ────────────────────────────────────────────────────────────────
+const MESI = {1:"Gennaio",2:"Febbraio",3:"Marzo",4:"Aprile",5:"Maggio",6:"Giugno",
+  7:"Luglio",8:"Agosto",9:"Settembre",10:"Ottobre",11:"Novembre",12:"Dicembre"};
+const MODALITA_LABEL = {"MP12":"RIBA","MP19":"SEPA Direct Debit"};
+
+let FATTURE = [];
+let ANNO = "2026";   // anno mostrato/etichettato, modificabile dall'header
+
+// ─── ESTRAZIONE XML DA P7M / XML ─────────────────────────────────────────────
+// Legge i byte (ArrayBuffer) e restituisce la stringa XML, come in Python.
+function estrai_xml(buffer){
+  const bytes = new Uint8Array(buffer);
+  const findSeq = (seq, from=0)=>{
+    outer: for(let i=from;i<=bytes.length-seq.length;i++){
+      for(let j=0;j<seq.length;j++){ if(bytes[i+j]!==seq[j]) continue outer; }
+      return i;
+    }
+    return -1;
+  };
+  const enc = s => Array.from(s).map(c=>c.charCodeAt(0));
+  let start = findSeq(enc("<?xml"));
+  if(start === -1) start = findSeq(enc("<FatturaElettronica"));
+  if(start === -1) throw new Error("Nessun XML trovato nel file");
+  // end = ultimo '>' (62) + 1
+  let end = -1;
+  for(let i=bytes.length-1;i>=0;i--){ if(bytes[i]===62){ end=i+1; break; } }
+  if(end === -1) end = bytes.length;
+  const slice = bytes.subarray(start, end);
+  try{
+    return new TextDecoder("utf-8",{fatal:true}).decode(slice);
+  }catch(e){
+    return new TextDecoder("latin1").decode(slice);
+  }
+}
+
+// ─── HELPERS XML ─────────────────────────────────────────────────────────────
+function reEsc(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"); }
+
+function _tag(xml, tag, def=""){
+  const m = xml.match(new RegExp("<"+reEsc(tag)+"[^>]*>([\\s\\S]*?)</"+reEsc(tag)+">"));
+  if(m) return m[1].replace(/\s+/g," ").trim();
+  return def;
+}
+function _tags(xml, tag){
+  const out=[]; const re = new RegExp("<"+reEsc(tag)+"[^>]*>([\\s\\S]*?)</"+reEsc(tag)+">","g");
+  let m; while((m=re.exec(xml))!==null){ out.push(m[1].replace(/\s+/g," ").trim()); }
+  return out;
+}
+function _block(xml, tag){
+  const out=[]; const re = new RegExp("<"+reEsc(tag)+"[\\s>][\\s\\S]*?</"+reEsc(tag)+">","g");
+  let m; while((m=re.exec(xml))!==null){ out.push(m[0]); }
+  return out;
+}
+function toFloat(s){
+  if(!s) return 0.0;
+  s = String(s).trim();
+  let v = parseFloat(s);
+  if(!isNaN(v) && /^-?\d*\.?\d+$/.test(s)) return v;
+  if(!isNaN(v) && s.indexOf(",")===-1) return v;
+  const alt = parseFloat(s.replace(/\./g,"").replace(/,/g,"."));
+  return isNaN(alt) ? 0.0 : alt;
+}
+function fmt_data(iso){
+  if(!iso) return "";
+  const m = iso.trim().match(/(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return `${m[3]}/${m[2]}/${m[1]}`;
+  return iso.trim();
+}
+function mese_da_iso(iso){
+  if(!iso) return null;
+  const m = iso.trim().match(/^\d{4}-(\d{2})-\d{2}/);
+  if(m){ const v=parseInt(m[1],10); return (v>=1&&v<=12)?v:null; }
+  return null;
+}
+function fmtEur(v){
+  try{
+    return Number(v).toLocaleString("it-IT",{minimumFractionDigits:2,maximumFractionDigits:2});
+  }catch(e){ return String(v); }
+}
+function clean_str(s){
+  if(!s) return s;
+  return String(s).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g,"").trim();
+}
+function estrai_importo_pagamento(block){
+  let m = block.match(/>(\d+\.\d+)\s*<\/ImportoPagamento>/);
+  if(m) return m[1];
+  let m2 = block.match(/<DataScadenzaPagamento>\d{4}-\d{2}-\d{2}<\/DataScadenzaPagamento>\s*[^<]*<[^>]+>(\d+\.\d+)<\//);
+  if(m2) return m2[1];
+  return "0.00";
+}
+// Estrae la data di scadenza in modo robusto.
+// Nei P7M il tag di APERTURA può essere corrotto da byte di firma illegali
+// (es. <DataScadenz\x04\x82..aPagamento>), quindi il _tag classico fallisce e
+// la rata sparisce dallo scadenzario. Il closing tag </DataScadenzaPagamento>
+// è invece sempre integro: lo usiamo come àncora.
+function estrai_data_scadenza(block){
+  // Strategia 1: tag di apertura integro
+  let m = block.match(/<DataScadenzaPagamento[^>]*>\s*(\d{4}-\d{2}-\d{2})\s*<\/DataScadenzaPagamento>/);
+  if(m) return m[1];
+  // Strategia 2: àncora sul closing tag (apertura corrotta dalla firma P7M)
+  let m2 = block.match(/(\d{4}-\d{2}-\d{2})\s*<\/DataScadenzaPagamento>/);
+  if(m2) return m2[1];
+  // Strategia 3: qualunque data ISO nel blocco di pagamento
+  let m3 = block.match(/(\d{4}-\d{2}-\d{2})/);
+  if(m3) return m3[1];
+  return "";
+}
+
+// ─── PARSER FATTURA ──────────────────────────────────────────────────────────
+function parse_fattura(filename, buffer){
+  const result = {
+    filename, ced_nome:"",ced_piva:"",ced_cf:"",ced_indirizzo:"",ced_cap:"",ced_comune:"",ced_provincia:"",
+    ces_nome:"",ces_piva:"",ces_cf:"",ces_indirizzo:"",ces_cap:"",ces_comune:"",ces_provincia:"",ces_coddes:"",
+    doc_numero:"",doc_data:"",doc_tipo:"",causale:"",
+    imponibile:0.0,iva_perc:"",iva_eur:0.0,totale:0.0,
+    pagamenti:[],ha_ribe_sepa:false,ddt_numero:"",ddt_data:""
+  };
+  try{
+    const xml = estrai_xml(buffer);
+
+    const ced_blocks = _block(xml,"CedentePrestatore");
+    if(ced_blocks.length){
+      const cb = ced_blocks[0];
+      result.ced_nome = clean_str(_tag(cb,"Denominazione") || (`${_tag(cb,"Nome")} ${_tag(cb,"Cognome")}`).trim());
+      result.ced_piva = clean_str(_tag(cb,"IdCodice"));
+      result.ced_cf   = clean_str(_tag(cb,"CodiceFiscale"));
+      const sede=_block(cb,"Sede");
+      if(sede.length){
+        const s=sede[0]; const civ=_tag(s,"NumeroCivico");
+        result.ced_indirizzo=clean_str((_tag(s,"Indirizzo")+(civ?(" "+civ):"")).trim());
+        result.ced_cap=clean_str(_tag(s,"CAP"));
+        result.ced_comune=clean_str(_tag(s,"Comune"));
+        result.ced_provincia=clean_str(_tag(s,"Provincia"));
+      }
+    }
+
+    const ces_blocks = _block(xml,"CessionarioCommittente");
+    if(ces_blocks.length){
+      const cb = ces_blocks[0];
+      result.ces_nome = clean_str(_tag(cb,"Denominazione") || (`${_tag(cb,"Nome")} ${_tag(cb,"Cognome")}`).trim());
+      result.ces_piva = clean_str(_tag(cb,"IdCodice"));
+      result.ces_cf   = clean_str(_tag(cb,"CodiceFiscale"));
+      result.ces_coddes = clean_str(_tag(xml,"CodiceDestinatario"));
+      const sede=_block(cb,"Sede");
+      if(sede.length){
+        const s=sede[0]; const civ=_tag(s,"NumeroCivico");
+        result.ces_indirizzo=clean_str((_tag(s,"Indirizzo")+(civ?(" "+civ):"")).trim());
+        result.ces_cap=clean_str(_tag(s,"CAP"));
+        result.ces_comune=clean_str(_tag(s,"Comune"));
+        result.ces_provincia=clean_str(_tag(s,"Provincia"));
+      }
+    }
+
+    const dg_blocks=_block(xml,"DatiGeneraliDocumento");
+    if(dg_blocks.length){
+      const d=dg_blocks[0];
+      result.doc_tipo=clean_str(_tag(d,"TipoDocumento"));
+      result.doc_data=fmt_data(_tag(d,"Data"));
+      result.doc_numero=clean_str(_tag(d,"Numero"));
+      const tot=_tag(d,"ImportoTotaleDocumento");
+      result.totale=tot?toFloat(tot):0.0;
+      const causali=_tags(d,"Causale").map(clean_str).filter(c=>c);
+      result.causale=causali.join(" | ");
+    }
+
+    const riepi=_block(xml,"DatiRiepilogo");
+    if(riepi.length){
+      const r=riepi[0]; const aliq=_tag(r,"AliquotaIVA");
+      result.iva_perc=aliq?(aliq+"%"):"";
+      result.imponibile=toFloat(_tag(r,"ImponibileImporto"));
+      result.iva_eur=toFloat(_tag(r,"Imposta"));
+    }
+
+    const ddt=_block(xml,"DatiDDT");
+    if(ddt.length){
+      const d=ddt[0];
+      result.ddt_numero=clean_str(_tag(d,"NumeroDDT"));
+      result.ddt_data=fmt_data(_tag(d,"DataDDT"));
+    }
+
+    const pagamenti=[];
+    for(const det of _block(xml,"DettaglioPagamento")){
+      const codice=_tag(det,"ModalitaPagamento");
+      if(!(codice in MODALITA_LABEL)) continue;
+      const data_iso=estrai_data_scadenza(det);
+      pagamenti.push({
+        codice, modalita:MODALITA_LABEL[codice], data:fmt_data(data_iso), data_iso,
+        mese:mese_da_iso(data_iso), importo:toFloat(estrai_importo_pagamento(det)),
+        banca:clean_str(_tag(det,"IstitutoFinanziario")), iban:_tag(det,"IBAN"),
+        abi:_tag(det,"ABI"), cab:_tag(det,"CAB"), giorni:_tag(det,"GiorniTerminiPagamento"),
+        data_rif:fmt_data(_tag(det,"DataRiferimentoTerminiPagamento"))
+      });
+    }
+    result.pagamenti=pagamenti;
+    result.ha_ribe_sepa=pagamenti.length>0;
+    if(result.totale===0.0 && pagamenti.length){
+      result.totale=pagamenti.reduce((a,p)=>a+p.importo,0);
+    }
+  }catch(e){
+    result.causale="[ERRORE PARSING: "+e.message+"]";
+  }
+  return result;
+}
+
+// ─── LOG / STATUS ────────────────────────────────────────────────────────────
+const logEl=document.getElementById("log");
+const statusEl=document.getElementById("status");
+function log(msg){
+  const ts=new Date().toLocaleTimeString("it-IT",{hour12:false});
+  logEl.textContent += `[${ts}]  ${msg}\n`;
+  logEl.scrollTop=logEl.scrollHeight;
+}
+function setStatus(s){ statusEl.textContent=s; }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+// ─── CARICAMENTO FILE ────────────────────────────────────────────────────────
+function readFileBuffer(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result);
+    r.onerror=()=>rej(r.error);
+    r.readAsArrayBuffer(file);
+  });
+}
+
+async function handleFiles(fileList){
+  const files=Array.from(fileList);
+  if(!files.length) return;
+  setStatus(`Elaborazione ${files.length} file…`);
+  let idx=0;
+  for(const f of files){
+    idx++;
+    log("─".repeat(60));
+    log(`📄  [${idx}/${files.length}]  ${f.name}`);
+    try{
+      const buf=await readFileBuffer(f);
+      const ft=parse_fattura(f.name,buf);
+      FATTURE.push(ft);
+      log(`     Cedente    :  ${ft.ced_nome}  (PIVA: ${ft.ced_piva})`);
+      log(`     Cessionario:  ${ft.ces_nome}  (PIVA: ${ft.ces_piva})`);
+      log(`     Documento  :  ${ft.doc_numero}  del ${ft.doc_data}  [${ft.doc_tipo}]`);
+      log(`     Totale     :  € ${fmtEur(ft.totale)}  (Imponibile € ${fmtEur(ft.imponibile)}  IVA ${ft.iva_perc})`);
+      if(ft.pagamenti.length){
+        for(const p of ft.pagamenti){
+          log(`     💳  ${p.modalita.padEnd(22)}  ${p.data}  →  € ${fmtEur(p.importo)}`+(p.banca?`  [${p.banca}]`:""));
+        }
+      }else{
+        log("     —  Nessun pagamento RIBA / SEPA in questo file");
+      }
+    }catch(e){
+      log(`     ✗  ERRORE: ${e.message}`);
+    }
+  }
+  log("─".repeat(60));
+  const n_rs=FATTURE.filter(f=>f.ha_ribe_sepa).length;
+  log(`✅  ${FATTURE.length} file elaborati  —  ${n_rs} con RIBA / SEPA Direct Debit`);
+  setStatus(`✅  ${FATTURE.length} fatture caricate — ${n_rs} con RIBA / SEPA`);
+  document.getElementById("counter").textContent=`${FATTURE.length} fatture · ${n_rs} RIBA/SEPA`;
+  renderAll();
+}
+
+// ─── RENDER FOGLIO 1 – TRASCRIZIONI ──────────────────────────────────────────
+function renderV1(){
+  const el=document.getElementById("v1");
+  if(!FATTURE.length){ el.innerHTML='<div class="empty">Nessuna fattura caricata.</div>'; return; }
+  let h='<div class="table-wrap"><table><thead>';
+  h+='<tr class="group">'
+    +'<th colspan="5">DOCUMENTO</th>'
+    +'<th colspan="7">CEDENTE / PRESTATORE</th>'
+    +'<th colspan="8">CESSIONARIO / COMMITTENTE</th>'
+    +'<th colspan="4">IMPORTI</th>'
+    +'<th colspan="2">DDT</th>'
+    +'<th colspan="1">PAGAMENTI</th></tr>';
+  h+='<tr>'+['File','N. Documento','Data','Tipo','Causale',
+    'Ragione Sociale','P.IVA','C.F.','Indirizzo','CAP','Comune','Prov.',
+    'Ragione Sociale','P.IVA','C.F.','Indirizzo','CAP','Comune','Prov.','Cod. Dest.',
+    'Imponibile (€)','IVA %','IVA (€)','Totale (€)','N. DDT','Data DDT','Riepilogo pagamenti']
+    .map(t=>`<th>${t}</th>`).join("")+'</tr></thead><tbody>';
+  for(const ft of FATTURE){
+    const pag=ft.pagamenti.map(p=>`${p.modalita} ${p.data} € ${fmtEur(p.importo)}`).join("  |  ");
+    h+='<tr>'
+      +`<td>${esc(ft.filename)}</td><td>${esc(ft.doc_numero)}</td><td>${esc(ft.doc_data)}</td><td>${esc(ft.doc_tipo)}</td><td>${esc(ft.causale)}</td>`
+      +`<td class="ced">${esc(ft.ced_nome)}</td><td>${esc(ft.ced_piva)}</td><td>${esc(ft.ced_cf)}</td><td>${esc(ft.ced_indirizzo)}</td><td>${esc(ft.ced_cap)}</td><td>${esc(ft.ced_comune)}</td><td>${esc(ft.ced_provincia)}</td>`
+      +`<td class="ces">${esc(ft.ces_nome)}</td><td>${esc(ft.ces_piva)}</td><td>${esc(ft.ces_cf)}</td><td>${esc(ft.ces_indirizzo)}</td><td>${esc(ft.ces_cap)}</td><td>${esc(ft.ces_comune)}</td><td>${esc(ft.ces_provincia)}</td><td>${esc(ft.ces_coddes)}</td>`
+      +`<td class="num">${fmtEur(ft.imponibile)}</td><td>${esc(ft.iva_perc)}</td><td class="num">${fmtEur(ft.iva_eur)}</td><td class="eur">${fmtEur(ft.totale)}</td>`
+      +`<td>${esc(ft.ddt_numero)}</td><td>${esc(ft.ddt_data)}</td><td>${esc(pag)}</td></tr>`;
+  }
+  h+='</tbody></table></div>';
+  el.innerHTML=h;
+}
+
+// ─── RENDER FOGLIO 2 – RIBE / SEPA ───────────────────────────────────────────
+function renderV2(){
+  const el=document.getElementById("v2");
+  const rs=FATTURE.filter(f=>f.ha_ribe_sepa);
+  if(!rs.length){ el.innerHTML='<div class="empty">⚠ Nessuna fattura con RIBA / SEPA Direct Debit trovata.</div>'; return; }
+  let h='<div class="table-wrap"><table><thead><tr>'
+    +['File','N. Documento','Data','Cedente','P.IVA Ced.','Cessionario','P.IVA Ces.',
+      'Modalità','Cod.','Data Scad.','Giorni','Banca','IBAN','Importo (€)']
+      .map(t=>`<th>${t}</th>`).join("")+'</tr></thead><tbody>';
+  for(const ft of rs){
+    ft.pagamenti.forEach((p,i)=>{
+      // Le colonne fisse vengono ripetute su ogni rata: così tutte le 14 colonne
+      // restano sempre allineate (niente rowspan che sfalsa le righe).
+      const sub = i>0 ? ' style="color:var(--fg-muted)"' : '';
+      const badge=p.codice==="MP19"?'<span class="badge b-sepa">SEPA</span>':'<span class="badge b-riba">RIBA</span>';
+      h+='<tr>'
+        +`<td${sub}>${i>0?'↳ ':''}${esc(ft.filename)}</td><td${sub}>${esc(ft.doc_numero)}</td><td${sub}>${esc(ft.doc_data)}</td>`
+        +`<td class="ced"${sub}>${esc(ft.ced_nome)}</td><td${sub}>${esc(ft.ced_piva)}</td>`
+        +`<td class="ces"${sub}>${esc(ft.ces_nome)}</td><td${sub}>${esc(ft.ces_piva)}</td>`
+        +`<td>${badge} ${esc(p.modalita)}</td><td>${esc(p.codice)}</td><td>${esc(p.data)}</td><td>${esc(p.giorni)}</td>`
+        +`<td>${esc(p.banca)}</td><td class="mono">${esc(p.iban)}</td><td class="eur">${fmtEur(p.importo)}</td></tr>`;
+    });
+  }
+  h+='</tbody></table></div>';
+  el.innerHTML=h;
+}
+
+// ─── RENDER FOGLIO 3 – RIBA × MESI ───────────────────────────────────────────
+function aggregaMesi(){
+  const imp={},cnt={},rate={};
+  for(let m=1;m<=12;m++){imp[m]=0;cnt[m]=0;rate[m]=[];}
+  for(const ft of FATTURE){
+    for(const p of ft.pagamenti){
+      const m=p.mese;
+      if(m&&m>=1&&m<=12){
+        imp[m]+=p.importo; cnt[m]+=1;
+        rate[m].push({fattura:ft.filename,cedente:ft.ced_nome,cessionario:ft.ces_nome,
+          modalita:p.modalita,codice:p.codice,data:p.data,importo:p.importo,banca:p.banca,iban:p.iban});
+      }
+    }
+  }
+  return {imp,cnt,rate};
+}
+function renderV3(){
+  const el=document.getElementById("v3");
+  if(!FATTURE.length){ el.innerHTML='<div class="empty">Nessuna fattura caricata.</div>'; return; }
+  const {imp,cnt,rate}=aggregaMesi();
+  const totale_anno=Object.values(imp).reduce((a,b)=>a+b,0);
+  const max_imp=Math.max(0,...Object.values(imp));
+  const tot_cnt=Object.values(cnt).reduce((a,b)=>a+b,0);
+
+  let h='<div class="cards">'
+    +`<div class="card"><div class="lbl">Totale annuale ${ANNO}</div><div class="val" style="color:#81C784">€ ${fmtEur(totale_anno)}</div></div>`
+    +`<div class="card"><div class="lbl">N° Rate totali</div><div class="val">${tot_cnt}</div></div>`
+    +`<div class="card"><div class="lbl">Fatture con RIBA/SEPA</div><div class="val">${FATTURE.filter(f=>f.ha_ribe_sepa).length}</div></div>`
+    +'</div>';
+
+  h+='<div class="table-wrap" style="max-height:none"><table><thead><tr>'
+    +'<th>Mese</th><th>N° Rate</th><th>Totale (€)</th><th>Barra proporzionale</th><th>% su anno</th></tr></thead><tbody>';
+  for(let m=1;m<=12;m++){
+    const ha=imp[m]>0;
+    const w=ha&&max_imp>0?Math.round((imp[m]/max_imp)*180):0;
+    const perc=ha&&totale_anno>0?((imp[m]/totale_anno)*100).toFixed(1)+"%":"–";
+    h+=`<tr><td style="font-weight:bold;color:${ha?'#90CAF9':'#607D8B'}">${MESI[m]}</td>`
+      +`<td class="num">${ha?cnt[m]:'–'}</td>`
+      +`<td class="eur">${ha?fmtEur(imp[m]):'–'}</td>`
+      +`<td><span class="month-bar" style="width:${w}px"></span></td>`
+      +`<td class="num" style="color:#FFB74D">${perc}</td></tr>`;
+  }
+  h+=`<tr style="background:var(--navy);font-weight:bold"><td>TOTALE ANNUALE ${ANNO}</td><td class="num">${tot_cnt}</td><td class="eur" style="color:#fff">€ ${fmtEur(totale_anno)}</td><td></td><td class="num">100%</td></tr>`;
+  h+='</tbody></table></div>';
+
+  // Dettaglio rate per mese
+  h+='<h3 style="margin-top:18px;color:#90CAF9">▼ Dettaglio rate per mese</h3>';
+  for(let m=1;m<=12;m++){
+    if(!rate[m].length) continue;
+    h+=`<div class="month-block"><div class="month-head">${MESI[m].toUpperCase()} — ${cnt[m]} rata/e — Totale: € ${fmtEur(imp[m])}</div>`;
+    h+='<div class="table-wrap" style="max-height:none"><table class="detail-table">'
+      +'<colgroup><col style="width:26%"><col style="width:22%"><col style="width:22%"><col style="width:18%"><col style="width:12%"></colgroup>'
+      +'<thead><tr>'
+      +'<th>Fattura</th><th>Cedente</th><th>Cessionario</th><th>Modalità / Data</th><th>Importo (€)</th></tr></thead><tbody>';
+    let sub=0;
+    for(const d of rate[m]){
+      sub+=d.importo;
+      h+=`<tr><td>${esc(d.fattura)}</td><td class="ced">${esc(d.cedente)}</td><td class="ces">${esc(d.cessionario)}</td>`
+        +`<td style="text-align:center;color:#90CAF9">${esc(d.modalita)} ${esc(d.data)}</td><td class="eur">${fmtEur(d.importo)}</td></tr>`;
+    }
+    h+=`<tr style="background:#3a3520"><td colspan="4" style="text-align:right;font-weight:bold;color:#FFE082">Subtotale ${MESI[m]}:</td><td class="eur" style="color:#FFE082">${fmtEur(sub)}</td></tr>`;
+    h+='</tbody></table></div></div>';
+  }
+  el.innerHTML=h;
+}
+
+function renderAll(){ renderV1(); renderV2(); renderV3(); }
+
+// ─── EXPORT EXCEL (SheetJS) ──────────────────────────────────────────────────
+// Calcola le larghezze colonna (in caratteri) dal contenuto, così in Excel
+// non viene tagliato nulla. minW/maxW limitano i casi estremi.
+function autoCols(aoa, minW=10, maxW=60){
+  const w=[];
+  for(const row of aoa){
+    if(!row) continue;
+    row.forEach((cell,ci)=>{
+      let len;
+      if(typeof cell==="number") len=fmtEur(cell).length+3;       // spazio per " €"
+      else len=String(cell==null?"":cell).length;
+      w[ci]=Math.max(w[ci]||0, len);
+    });
+  }
+  return w.map(x=>({wch:Math.max(minW, Math.min((x||0)+2, maxW))}));
+}
+
+// Palette e helper di stile (richiede xlsx-js-style)
+const HX={navy:"1A3C5E",blue:"0D47A1",vblue:"BBDEFB",e3f2:"EAF3FC",white:"FFFFFF",
+  light:"F4F7FB",green:"2E7D32",lgreen:"E9F6EC",dgreen:"1B5E20",orange:"E65100",
+  loran:"FFF3E0",gold:"FFF2C2",red:"B71C1C",purple:"5E35B1",teal:"00838F",
+  gray:"607D8B",dark:"2A3B49"};
+const EUR='#,##0.00" €"';
+const PCT='0.0%';
+function FNT(o){o=o||{};return{name:o.name||"Calibri",sz:o.sz||10,bold:!!o.bold,italic:!!o.italic,color:{rgb:o.color||"2A3B49"}};}
+function FILL(rgb){return{patternType:"solid",fgColor:{rgb:rgb}};}
+function AL(h,wrap){return{horizontal:h||"left",vertical:"center",wrapText:!!wrap};}
+const _bd={style:"thin",color:{rgb:"D5DBE2"}};
+const BORD={top:_bd,bottom:_bd,left:_bd,right:_bd};
+// Applica stile (e opz. formato numero) a una cella, creandola se manca
+function SS(ws,r,c,style,z){
+  const a=XLSX.utils.encode_cell({r:r,c:c});
+  if(!ws[a]) ws[a]={t:"s",v:""};
+  ws[a].s=style;
+  if(z) ws[a].z=z;
+  return ws[a];
+}
+
+function exportExcel(){
+  if(!FATTURE.length){ alert("Carica prima i file XML / P7M."); return; }
+  if(typeof XLSX==="undefined" || !XLSX.utils){ alert("Libreria Excel non caricata (CDN bloccata?)."); return; }
+  const wb=XLSX.utils.book_new();
+
+  // ═══════════════ FOGLIO 1 — TRASCRIZIONI ═══════════════
+  const head1=['File','N. Documento','Data','Tipo','Causale',
+    'Ragione Sociale','P.IVA','C.F.','Indirizzo','CAP','Comune','Prov.',
+    'Ragione Sociale','P.IVA','C.F.','Indirizzo','CAP','Comune','Prov.','Cod. Dest.',
+    'Imponibile (€)','IVA %','IVA (€)','Totale (€)','N. DDT','Data DDT','Riepilogo pagamenti'];
+  const data1=[ new Array(27).fill(""), new Array(27).fill(""), head1 ];
+  for(const ft of FATTURE){
+    const pag=ft.pagamenti.map(p=>`${p.modalita} ${p.data} € ${fmtEur(p.importo)}`).join("  |  ");
+    data1.push([ft.filename,ft.doc_numero,ft.doc_data,ft.doc_tipo,ft.causale,
+      ft.ced_nome,ft.ced_piva,ft.ced_cf,ft.ced_indirizzo,ft.ced_cap,ft.ced_comune,ft.ced_provincia,
+      ft.ces_nome,ft.ces_piva,ft.ces_cf,ft.ces_indirizzo,ft.ces_cap,ft.ces_comune,ft.ces_provincia,ft.ces_coddes,
+      ft.imponibile,ft.iva_perc,ft.iva_eur,ft.totale,ft.ddt_numero,ft.ddt_data,pag]);
+  }
+  const ws1=XLSX.utils.aoa_to_sheet(data1);
+  ws1['!cols']=autoCols(data1.slice(2));
+  ws1['!merges']=[
+    {s:{r:0,c:0},e:{r:0,c:26}},
+    {s:{r:1,c:0},e:{r:1,c:4}},  {s:{r:1,c:5},e:{r:1,c:11}}, {s:{r:1,c:12},e:{r:1,c:19}},
+    {s:{r:1,c:20},e:{r:1,c:23}},{s:{r:1,c:24},e:{r:1,c:25}},{s:{r:1,c:26},e:{r:1,c:26}},
+  ];
+  ws1['!rows']=[{hpt:30},{hpt:22},{hpt:30}];
+  // Titolo
+  const t1=SS(ws1,0,0,{font:FNT({sz:16,bold:true,color:HX.white}),fill:FILL(HX.navy),alignment:AL("left")});
+  t1.v=`Scadenziario RIBA e SDD  ·  Trascrizioni  ·  ${ANNO}`; t1.t="s";
+  // Riga gruppi
+  [[0,"DOCUMENTO",HX.navy],[5,"CEDENTE / PRESTATORE",HX.dgreen],[12,"CESSIONARIO / COMMITTENTE",HX.red],
+   [20,"IMPORTI",HX.purple],[24,"DDT",HX.orange],[26,"PAG.",HX.teal]].forEach(([c,txt,col])=>{
+    const g=SS(ws1,1,c,{font:FNT({sz:11,bold:true,color:HX.white}),fill:FILL(col),alignment:AL("center"),border:BORD});
+    g.v=txt; g.t="s";
+  });
+  // Intestazioni colonne
+  const hcol1=c=> c<=4?HX.navy : c<=11?HX.dgreen : c<=19?HX.red : c<=23?HX.purple : c<=25?HX.orange : HX.teal;
+  for(let c=0;c<27;c++) SS(ws1,2,c,{font:FNT({sz:9,bold:true,color:HX.white}),fill:FILL(hcol1(c)),alignment:AL("center",true),border:BORD});
+  // Dati
+  const num1=new Set([20,22,23]);
+  for(let r=3;r<data1.length;r++){
+    const zebra=(r%2===1)?HX.light:HX.white;
+    for(let c=0;c<27;c++){
+      let color="2A3B49",bold=false,fill=zebra;
+      if(c===5){color=HX.dgreen;bold=true;} else if(c===12){color=HX.red;bold=true;} else if(c===23){color=HX.green;bold=true;}
+      const isNum=num1.has(c);
+      SS(ws1,r,c,{font:FNT({sz:9,bold:bold,color:color}),fill:FILL(fill),alignment:AL(isNum?"right":"left"),border:BORD}, isNum?EUR:null);
+    }
+  }
+  XLSX.utils.book_append_sheet(wb,ws1,"Trascrizioni");
+
+  // ═══════════════ FOGLIO 2 — RIBE / SEPA ═══════════════
+  const head2=['File','N. Documento','Data','Cedente','P.IVA Ced.','Cessionario','P.IVA Ces.',
+    'Modalità','Cod.','Data Scad.','Giorni','Banca','IBAN','Importo (€)'];
+  const data2=[ new Array(14).fill(""), head2 ];
+  const meta2=[];
+  for(const ft of FATTURE.filter(f=>f.ha_ribe_sepa)){
+    ft.pagamenti.forEach((p,i)=>{
+      data2.push([i===0?ft.filename:"↳", i===0?ft.doc_numero:"", i===0?ft.doc_data:"",
+        i===0?ft.ced_nome:"", i===0?ft.ced_piva:"", i===0?ft.ces_nome:"", i===0?ft.ces_piva:"",
+        p.modalita,p.codice,p.data,p.giorni,p.banca,p.iban,p.importo]);
+      meta2.push({isSepa:p.codice==="MP19"});
+    });
+  }
+  const ws2=XLSX.utils.aoa_to_sheet(data2);
+  ws2['!cols']=autoCols(data2.slice(1));
+  ws2['!merges']=[{s:{r:0,c:0},e:{r:0,c:13}}];
+  ws2['!rows']=[{hpt:30},{hpt:26}];
+  const t2=SS(ws2,0,0,{font:FNT({sz:16,bold:true,color:HX.white}),fill:FILL(HX.orange),alignment:AL("left")});
+  t2.v=`Scadenziario RIBA e SDD  ·  RIBE / SEPA Direct Debit  ·  ${ANNO}`; t2.t="s";
+  const hcol2=c=> c<=2?HX.navy : c<=4?HX.dgreen : c<=6?HX.red : HX.teal;
+  for(let c=0;c<14;c++) SS(ws2,1,c,{font:FNT({sz:9,bold:true,color:HX.white}),fill:FILL(hcol2(c)),alignment:AL("center",true),border:BORD});
+  for(let r=2;r<data2.length;r++){
+    const m=meta2[r-2], zebra=(r%2===0)?HX.light:HX.white;
+    for(let c=0;c<14;c++){
+      let color="2A3B49",bold=false,fill=zebra,al="left",nm="Calibri",sz=10,z=null;
+      if(c===3){color=HX.dgreen;bold=true;}
+      else if(c===5){color=HX.red;bold=true;}
+      else if(c===7||c===8){fill=m.isSepa?HX.loran:HX.lgreen;color=m.isSepa?HX.orange:HX.green;bold=true;al="center";}
+      else if(c===9){al="center";}
+      else if(c===12){nm="Consolas";sz=8;color=HX.gray;}
+      else if(c===13){color=HX.green;bold=true;al="right";fill=HX.lgreen;sz=10;z=EUR;}
+      SS(ws2,r,c,{font:FNT({name:nm,sz:sz,bold:bold,color:color}),fill:FILL(fill),alignment:AL(al),border:BORD}, z);
+    }
+  }
+  XLSX.utils.book_append_sheet(wb,ws2,"RIBE_SEPA");
+
+  // ═══════════════ FOGLIO 3 — RIBA x MESI ═══════════════
+  const {imp,cnt,rate}=aggregaMesi();
+  const totale_anno=Object.values(imp).reduce((a,b)=>a+b,0);
+  const tot_cnt=Object.values(cnt).reduce((a,b)=>a+b,0);
+  const max_imp=Math.max(0,...Object.values(imp));
+  const data3=[], role3=[];
+  const P=(row,role)=>{ data3.push(row); role3.push(role); };
+  P([`Scadenziario RIBA e SDD  ·  Scadenzario mensile  ·  ${ANNO}`,"","","",""],"title");
+  P(["Mese","N° Rate","Totale (€)","Barra proporzionale","% su anno"],"sumhead");
+  for(let m=1;m<=12;m++){
+    const ha=imp[m]>0;
+    const bar=ha&&max_imp>0?"█".repeat(Math.max(1,Math.round(imp[m]/max_imp*20))):"";
+    P([MESI[m], ha?cnt[m]:"–", ha?imp[m]:"–", bar, ha?(totale_anno>0?imp[m]/totale_anno:0):""], ha?"month":"month0");
+  }
+  P([`TOTALE ANNUALE ${ANNO}`,tot_cnt,totale_anno,"",1],"total");
+  P(["","","","",""],"blank");
+  P(["▼  Dettaglio rate per mese","","","",""],"secthead");
+  for(let m=1;m<=12;m++){
+    if(!rate[m].length) continue;
+    P(["","","","",""],"blank");
+    P([`${MESI[m].toUpperCase()}  —  ${cnt[m]} rata/e  —  Totale € ${fmtEur(imp[m])}`,"","","",""],"monthhead");
+    P(["Fattura","Cedente","Cessionario","Modalità / Data","Importo (€)"],"dethead");
+    let sub=0;
+    for(const d of rate[m]){ sub+=d.importo; P([d.fattura,d.cedente,d.cessionario,`${d.modalita} ${d.data}`,d.importo],"detail"); }
+    P(["","","",`Subtotale ${MESI[m]}:`,sub],"subtotal");
+  }
+  const ws3=XLSX.utils.aoa_to_sheet(data3);
+  ws3['!cols']=[{wch:34},{wch:10},{wch:18},{wch:26},{wch:14}];
+  const merges3=[{s:{r:0,c:0},e:{r:0,c:4}}];
+  const rows3=[];
+  const encell=(r,c)=>XLSX.utils.encode_cell({r:r,c:c});
+  for(let r=0;r<data3.length;r++){
+    const role=role3[r];
+    if(role==="title"){
+      for(let c=0;c<5;c++) SS(ws3,r,c,{font:FNT({sz:16,bold:true,color:HX.white}),fill:FILL(HX.green),alignment:AL("left")});
+      rows3[r]={hpt:30};
+    } else if(role==="sumhead"){
+      for(let c=0;c<5;c++) SS(ws3,r,c,{font:FNT({sz:10,bold:true,color:HX.white}),fill:FILL(HX.navy),alignment:AL("center",true),border:BORD});
+      rows3[r]={hpt:24};
+    } else if(role==="month"||role==="month0"){
+      const ha=role==="month", zebra=(r%2===0)?HX.light:HX.white;
+      SS(ws3,r,0,{font:FNT({sz:10,bold:ha,color:ha?HX.navy:HX.gray}),fill:FILL(zebra),alignment:AL("left"),border:BORD});
+      SS(ws3,r,1,{font:FNT({sz:10,bold:ha,color:ha?HX.navy:HX.gray}),fill:FILL(zebra),alignment:AL("center"),border:BORD});
+      SS(ws3,r,2,{font:FNT({sz:11,bold:true,color:ha?HX.green:HX.gray}),fill:FILL(ha?HX.lgreen:zebra),alignment:AL("right"),border:BORD}, ha?EUR:null);
+      SS(ws3,r,3,{font:FNT({sz:10,color:HX.blue}),fill:FILL(zebra),alignment:AL("left"),border:BORD});
+      SS(ws3,r,4,{font:FNT({sz:9,color:HX.orange}),fill:FILL(zebra),alignment:AL("center"),border:BORD}, ha?PCT:null);
+    } else if(role==="total"){
+      const mb={style:"medium",color:{rgb:HX.navy}};
+      for(let c=0;c<5;c++) SS(ws3,r,c,{font:FNT({sz:14,bold:true,color:HX.white}),fill:FILL(HX.navy),
+        alignment:AL(c===0?"left":(c===2?"right":"center")),border:{top:mb,bottom:mb,left:_bd,right:_bd}});
+      ws3[encell(r,2)].z=EUR; ws3[encell(r,4)].z=PCT;
+      rows3[r]={hpt:34};
+    } else if(role==="secthead"){
+      for(let c=0;c<5;c++) SS(ws3,r,c,{font:FNT({sz:12,bold:true,color:HX.white}),fill:FILL(HX.blue),alignment:AL("left")});
+      merges3.push({s:{r:r,c:0},e:{r:r,c:4}}); rows3[r]={hpt:26};
+    } else if(role==="monthhead"){
+      for(let c=0;c<5;c++) SS(ws3,r,c,{font:FNT({sz:11,bold:true,color:HX.navy}),fill:FILL(HX.vblue),alignment:AL("left")});
+      merges3.push({s:{r:r,c:0},e:{r:r,c:4}}); rows3[r]={hpt:22};
+    } else if(role==="dethead"){
+      for(let c=0;c<5;c++) SS(ws3,r,c,{font:FNT({sz:9,bold:true,color:HX.white}),fill:FILL(HX.dark),alignment:AL("center"),border:BORD});
+      rows3[r]={hpt:18};
+    } else if(role==="detail"){
+      const zebra=(r%2===0)?HX.light:HX.white;
+      SS(ws3,r,0,{font:FNT({sz:9}),fill:FILL(zebra),alignment:AL("left"),border:BORD});
+      SS(ws3,r,1,{font:FNT({sz:9,bold:true,color:HX.green}),fill:FILL(zebra),alignment:AL("left"),border:BORD});
+      SS(ws3,r,2,{font:FNT({sz:9,bold:true,color:HX.red}),fill:FILL(zebra),alignment:AL("left"),border:BORD});
+      SS(ws3,r,3,{font:FNT({sz:9,bold:true,color:HX.navy}),fill:FILL(zebra),alignment:AL("center"),border:BORD});
+      SS(ws3,r,4,{font:FNT({sz:10,bold:true,color:HX.green}),fill:FILL(HX.lgreen),alignment:AL("right"),border:BORD},EUR);
+    } else if(role==="subtotal"){
+      for(let c=0;c<5;c++) SS(ws3,r,c,{font:FNT({sz:12,bold:true,color:HX.navy}),fill:FILL(HX.gold),alignment:AL(c>=3?"right":"left"),border:BORD});
+      ws3[encell(r,4)].z=EUR; rows3[r]={hpt:22};
+    } else {
+      rows3[r]={hpt:6};
+    }
+  }
+  ws3['!merges']=merges3;
+  ws3['!rows']=rows3;
+  XLSX.utils.book_append_sheet(wb,ws3,"RIBA_x_Mesi");
+
+  let name=document.getElementById("outName").value.trim()||"Scadenziario RIBA e SDD.xlsx";
+  if(!/\.xlsx$/i.test(name)) name+=".xlsx";
+  XLSX.writeFile(wb,name);
+  log(`✅  Excel esportato (stile applicato): ${name}`);
+  setStatus(`✅  Excel esportato: ${name}`);
+}
+
+// ─── EVENTI UI ───────────────────────────────────────────────────────────────
+// Anno editabile (header) — persistito in localStorage, usato in tutte le etichette
+const annoInput=document.getElementById("annoInput");
+try{ const salvato=localStorage.getItem("scad_anno"); if(salvato) ANNO=salvato; }catch(e){}
+annoInput.value=ANNO;
+annoInput.addEventListener("input",()=>{ annoInput.value=annoInput.value.replace(/\D/g,"").slice(0,4); });
+function commitAnno(){
+  let v=annoInput.value.trim();
+  if(!/^\d{4}$/.test(v)) v=ANNO;          // se non sono 4 cifre, ripristina il precedente
+  ANNO=v; annoInput.value=v;
+  try{ localStorage.setItem("scad_anno",ANNO); }catch(e){}
+  if(FATTURE.length) renderAll();          // aggiorna le etichette con il nuovo anno
+}
+annoInput.addEventListener("change",commitAnno);
+annoInput.addEventListener("blur",commitAnno);
+annoInput.addEventListener("keydown",e=>{ if(e.key==="Enter") annoInput.blur(); });
+
+document.getElementById("btnLoad").onclick=()=>document.getElementById("fileInput").click();
+document.getElementById("fileInput").onchange=e=>{ handleFiles(e.target.files); e.target.value=""; };
+document.getElementById("btnLoadDir").onclick=()=>document.getElementById("dirInput").click();
+document.getElementById("dirInput").onchange=e=>{
+  // Una cartella restituisce TUTTI i file: tieni solo .xml / .p7m
+  const all=Array.from(e.target.files);
+  const validi=all.filter(f=>/\.(xml|p7m)$/i.test(f.name));
+  log("─".repeat(60));
+  log(`🗂  Cartella selezionata: ${all.length} file totali → ${validi.length} XML / P7M validi`);
+  if(!validi.length){ log("     —  Nessun file XML / P7M trovato nella cartella"); setStatus("Nessun file XML / P7M nella cartella"); }
+  else handleFiles(validi);
+  e.target.value="";
+};
+document.getElementById("btnExport").onclick=exportExcel;
+document.getElementById("btnClear").onclick=()=>{
+  FATTURE=[]; logEl.textContent=""; document.getElementById("counter").textContent="";
+  renderAll(); setStatus("Pronto — Seleziona i file XML o P7M");
+  log("Log e dati azzerati.");
+};
+document.querySelectorAll(".tab").forEach(tab=>{
+  tab.onclick=()=>{
+    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+    document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById(tab.dataset.view).classList.add("active");
+  };
+});
+// ─── DRAG & DROP (file singoli + cartelle, ricorsivo) ────────────────────────
+// IMPORTANTE: per far scattare il "drop" bisogna chiamare preventDefault su
+// dragenter/dragover/drop. Lo facciamo a livello di window così copre tutta la
+// pagina, qualunque elemento ci sia sotto il cursore.
+["dragenter","dragover","dragleave","drop"].forEach(ev=>
+  window.addEventListener(ev, e=>e.preventDefault(), false));
+window.addEventListener("dragover", e=>{
+  if(e.dataTransfer) e.dataTransfer.dropEffect="copy";
+  document.body.classList.add("drag-over");
+});
+window.addEventListener("dragleave", e=>{
+  if(e.relatedTarget===null) document.body.classList.remove("drag-over");
+});
+
+// Legge ricorsivamente una FileSystemEntry (file o directory) e raccoglie i File
+function readEntry(entry, out){
+  return new Promise(resolve=>{
+    if(entry.isFile){
+      entry.file(f=>{ out.push(f); resolve(); }, ()=>resolve());
+    }else if(entry.isDirectory){
+      const reader=entry.createReader();
+      const readBatch=()=>{
+        reader.readEntries(async entries=>{
+          if(!entries.length){ resolve(); return; }
+          for(const en of entries) await readEntry(en, out);
+          readBatch(); // le directory grandi vanno lette a blocchi finché non è vuoto
+        }, ()=>resolve());
+      };
+      readBatch();
+    }else resolve();
+  });
+}
+
+window.addEventListener("drop", async e=>{
+  document.body.classList.remove("drag-over");
+  const dt=e.dataTransfer;
+  // 1) Cattura SUBITO la lista file: funziona sempre, anche da file:// (drop di file).
+  const directFiles = (dt && dt.files) ? Array.from(dt.files) : [];
+  // 2) Prova il percorso "entry" per le CARTELLE (funziona solo via http/https;
+  //    da file:// il browser lo blocca → restiamo sul fallback directFiles).
+  let collected=[];
+  let folderDropped=false;
+  try{
+    const items=dt && dt.items;
+    if(items && items.length && items[0] && typeof items[0].webkitGetAsEntry==="function"){
+      const entries=[];
+      for(let i=0;i<items.length;i++){
+        const en=items[i].webkitGetAsEntry ? items[i].webkitGetAsEntry() : null;
+        if(en) entries.push(en);
+      }
+      folderDropped = entries.some(en=>en && en.isDirectory);
+      for(const en of entries) await readEntry(en, collected);
+    }
+  }catch(err){
+    console.warn("drag&drop: lettura entry non disponibile (probabile file://):",err);
+  }
+  const source = collected.length ? collected : directFiles;
+  const validi = source.filter(f=>/\.(xml|p7m)$/i.test(f.name));
+  log("─".repeat(60));
+  log(`📥  Drop: ${source.length} file → ${validi.length} XML / P7M validi`);
+  if(validi.length){ handleFiles(validi); return; }
+  if(folderDropped && !directFiles.length){
+    log("⚠  Il trascinamento di CARTELLE non è consentito aprendo l'app in locale (file://).");
+    log("     →  Usa il pulsante «📂 Carica Cartella» (funziona comunque).");
+    setStatus("Drop cartelle non supportato da file:// — usa «Carica Cartella»");
+  }else{
+    log("     —  Nessun file XML / P7M trovato nel drop");
+    setStatus("Nessun file XML / P7M trascinato");
+  }
+});
+
+log("Sistema avviato — Web edition");
+log("Parser FatturaPA XML / P7M · RIBA (MP12) · SEPA Direct Debit (MP19)");
+log("─".repeat(60));
+</script>
+</body>
+</html>
