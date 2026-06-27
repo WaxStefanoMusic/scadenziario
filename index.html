@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Scadenziario RIBA e SDD — v3.0 (Web)</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
   :root{
     --bg-main:#0D1B2A; --bg-panel:#152535; --bg-log:#091726; --bg-card:#112030;
@@ -36,6 +37,10 @@
     font-size:13px; cursor:pointer; font-family:inherit;
   }
   button.tb:hover{filter:brightness(1.12);}
+  #btnLoadDir{display:inline-flex; align-items:center;}
+  .btn-emoji{margin-right:6px;}
+  .folder-ico{height:1.6em; width:auto; margin-right:6px;}
+  .zip-ico{height:1.6em; width:auto; margin-left:6px;}
   .b-load{background:var(--btn-load);} .b-open{background:var(--btn-open);} .b-clr{background:var(--btn-clr);}
   .panel{padding:8px 24px; background:var(--bg-card); display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
   .panel label{color:var(--fg-label); font-size:13px; white-space:nowrap;}
@@ -100,11 +105,11 @@
 <div class="divider"></div>
 
 <div class="toolbar">
-  <button class="tb b-load" id="btnLoad">📄&nbsp;&nbsp;Carica File XML / P7M</button>
-  <button class="tb b-load" id="btnLoadDir">📂&nbsp;&nbsp;Carica Cartella</button>
+  <button class="tb b-load" id="btnLoad"><span class="btn-emoji">📄</span>Carica File XML / P7M / ZIP</button>
+  <button class="tb b-load" id="btnLoadDir"><img class="folder-ico" alt="Cartella" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAYAAAA6/NlyAAAACXBIWXMAAAsTAAALEwEAmpwYAAABJElEQVR4nO3SIU4DQRyF8Y8EA3dAgAVcLwO6XIB0qCFQi28qCAmqDQTFAVA7Gr+kEmyDQz6yPcFsut1l2Pclz/9/kwHnnHPOOee2mwJjjVhttMC1YIccUmCigBrYs27Zp0dgKfCuSw7oEVga8aXAgN6Awxr9oxHn9AZ8hfSIVPCtyGprKxh3D75BekWKLaxgUhu8vGDaGPYO6a0lbETLJ6a1weWQWSNf+GH94q1hq5ULZrXBnxNeNEUbra0v3AT4Y859F8d2Bi4XzLo+3OBosAyOBqdlcMxnBqdkcMxnBqdkcMxnBqdkcMxnBqdkcMxnBqdkcMxnBqdkcMxnBqdkcPzn4JMjBseHDHNcdXttMHAKnGW66vba7QJ7ma663TnnnOOP9wtmZXT6UUf0jwAAAABJRU5ErkJggg==">Carica Cartella<img class="zip-ico" alt="ZIP" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAYAAAA6/NlyAAAACXBIWXMAAAsTAAALEwEAmpwYAAACC0lEQVR4nO3Uv0sbYRwG8AdKCpoO7Z/RQRAnf0y2pZsdNB3UVYSQIQp5z2gNCTWIIC5FAqIiQpshlhYEf4BDCT36BwgdQoeWDl0KijpotfDIvYqgRj1N4nHvfR94CPcNB++Hu/sCEolEIpFIJBJJbUOFDBVYUROYYT9CCAxY6W4wiScIEJhM4ActPEVgwEqjt5jACwQGrHT/UyGOwICTID+AtK9vej5DKF6qM7/pXt2vyHgPfgty1cVhbTA6WR7szGsGLvUhVzXsO5BFd9hqgEt55LwBJ929whe7uQjmM5frzGsG/pPFZ86AFXXt9thq9G5POI+cF4etxtLyHTjqyTecFzDvq54srZKH4ErrO3BalhbN/oajQQNvytLCreo7cFqWFs3+hqNBA7/MFsqCnblxYHu5jQ/UUVmwM/+23GIWuH18XeNCap+DqU4upMOMpyIMWQd6/nxi1SxwvbWrYc9GZvn7E3hUhP5tH5nT8/DQjlngulPwq+zcuXnH2Lye11mGgRuH1zTsoXXApUKEe8VHLBRen73STcMrZoGnp1qvXlrWIXNTzWaB/66AA6kI663tc9iwtcXBVJf+3ygw7ZMltTj2mLHRXna/GWJstEdfO3M39/sOTBv89wX8uQR+fw/++nhy7fZeX4JZQQXsJgK2/VMBu0ngwAAaAHT7tM7ZBSyRSCQSiQSe5hhUnStIw4VMxQAAAABJRU5ErkJggg=="></button>
   <button class="tb b-open" id="btnExport">📊&nbsp;&nbsp;Esporta Excel</button>
   <button class="tb b-clr" id="btnClear">🗑&nbsp;&nbsp;Pulisci</button>
-  <input type="file" id="fileInput" multiple accept=".xml,.p7m,.XML,.P7M" style="display:none">
+  <input type="file" id="fileInput" multiple accept=".xml,.p7m,.zip,.XML,.P7M,.ZIP" style="display:none">
   <input type="file" id="dirInput" webkitdirectory directory multiple style="display:none">
 </div>
 
@@ -114,7 +119,7 @@
   <span id="counter" style="color:var(--fg-label);font-size:12px;"></span>
 </div>
 
-<div id="drop-hint">Trascina qui i file XML / P7M (o un'intera cartella) oppure usa i pulsanti «Carica File» / «Carica Cartella».</div>
+<div id="drop-hint">Trascina qui i file XML / P7M (o un'intera cartella anche ZIP) oppure usa i pulsanti «Carica File» / «Carica Cartella».</div>
 
 <div class="tabs">
   <div class="tab active" data-view="v1">📋 Trascrizioni</div>
@@ -363,6 +368,41 @@ function readFileBuffer(file){
     r.onerror=()=>rej(r.error);
     r.readAsArrayBuffer(file);
   });
+}
+
+// Espande eventuali .zip: ne estrae i .xml/.p7m (anche nelle sottocartelle)
+// e li restituisce come oggetti File, lasciando passare invariati gli altri file.
+async function expandZips(files){
+  const out=[];
+  for(const f of files){
+    if(/\.zip$/i.test(f.name)){
+      if(typeof JSZip==="undefined"){
+        log(`⚠  Libreria ZIP non caricata (CDN bloccata?) — «${f.name}» ignorato`);
+        continue;
+      }
+      try{
+        log(`🗜  Apro ZIP: ${f.name}…`);
+        const zip=await JSZip.loadAsync(f);
+        let n=0;
+        for(const path of Object.keys(zip.files)){
+          const entry=zip.files[path];
+          if(entry.dir) continue;
+          const base=path.split("/").pop();
+          if(/\.(xml|p7m)$/i.test(base)){
+            const buf=await entry.async("arraybuffer");
+            out.push(new File([buf], base));
+            n++;
+          }
+        }
+        log(`🗜  ${f.name}: estratti ${n} file XML / P7M`);
+      }catch(err){
+        log(`✗  Errore lettura ZIP ${f.name}: ${err.message}`);
+      }
+    }else{
+      out.push(f);
+    }
+  }
+  return out;
 }
 
 async function handleFiles(fileList){
@@ -755,14 +795,21 @@ annoInput.addEventListener("blur",commitAnno);
 annoInput.addEventListener("keydown",e=>{ if(e.key==="Enter") annoInput.blur(); });
 
 document.getElementById("btnLoad").onclick=()=>document.getElementById("fileInput").click();
-document.getElementById("fileInput").onchange=e=>{ handleFiles(e.target.files); e.target.value=""; };
+document.getElementById("fileInput").onchange=async e=>{
+  const expanded=await expandZips(Array.from(e.target.files));   // apre eventuali ZIP
+  const validi=expanded.filter(f=>/\.(xml|p7m)$/i.test(f.name));
+  e.target.value="";
+  if(validi.length) handleFiles(validi);
+  else setStatus("Nessun file XML / P7M (anche dopo apertura ZIP)");
+};
 document.getElementById("btnLoadDir").onclick=()=>document.getElementById("dirInput").click();
-document.getElementById("dirInput").onchange=e=>{
-  // Una cartella restituisce TUTTI i file: tieni solo .xml / .p7m
+document.getElementById("dirInput").onchange=async e=>{
+  // Una cartella restituisce TUTTI i file: apri gli ZIP e tieni solo .xml / .p7m
   const all=Array.from(e.target.files);
-  const validi=all.filter(f=>/\.(xml|p7m)$/i.test(f.name));
+  const expanded=await expandZips(all);
+  const validi=expanded.filter(f=>/\.(xml|p7m)$/i.test(f.name));
   log("─".repeat(60));
-  log(`🗂  Cartella selezionata: ${all.length} file totali → ${validi.length} XML / P7M validi`);
+  log(`🗂  Cartella selezionata: ${all.length} elementi → ${validi.length} XML / P7M validi`);
   if(!validi.length){ log("     —  Nessun file XML / P7M trovato nella cartella"); setStatus("Nessun file XML / P7M nella cartella"); }
   else handleFiles(validi);
   e.target.value="";
@@ -837,9 +884,10 @@ window.addEventListener("drop", async e=>{
   }catch(err){
     console.warn("drag&drop: lettura entry non disponibile (probabile file://):",err);
   }
-  const source = collected.length ? collected : directFiles;
-  const validi = source.filter(f=>/\.(xml|p7m)$/i.test(f.name));
+  const source0 = collected.length ? collected : directFiles;
   log("─".repeat(60));
+  const source = await expandZips(source0);            // apre eventuali ZIP trascinati
+  const validi = source.filter(f=>/\.(xml|p7m)$/i.test(f.name));
   log(`📥  Drop: ${source.length} file → ${validi.length} XML / P7M validi`);
   if(validi.length){ handleFiles(validi); return; }
   if(folderDropped && !directFiles.length){
