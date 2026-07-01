@@ -23,6 +23,7 @@
   header .title{font-size:26px; font-weight:bold;}
   header .subtitle{font-size:12px; color:var(--fg-muted); padding-bottom:3px;}
   header .year{margin-left:auto; font-size:30px; font-weight:bold; color:#1E3A52;}
+  /* Anno editabile: stesso aspetto del badge, ma diventa interattivo su hover/focus */
   header input.year{
     background:transparent; border:none; padding:0 2px; width:4.6ch;
     text-align:right; font-family:inherit; cursor:text; border-bottom:2px solid transparent;
@@ -38,6 +39,8 @@
   button.tb:hover{filter:brightness(1.12);}
   #btnLoadDir{display:inline-flex; align-items:center;}
   .btn-emoji{margin-right:6px;}
+  .folder-ico{height:1.6em; width:auto; margin-right:6px;}
+  .zip-ico{height:1.6em; width:auto; margin-left:6px;}
   .b-load{background:var(--btn-load);} .b-open{background:var(--btn-open);} .b-clr{background:var(--btn-clr);}
   .panel{padding:8px 24px; background:var(--bg-card); display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
   .panel label{color:var(--fg-label); font-size:13px; white-space:nowrap;}
@@ -72,9 +75,12 @@
   .card .lbl{color:var(--fg-label); font-size:11px;} .card .val{font-size:20px; font-weight:bold; margin-top:4px;}
   .month-block{margin-bottom:18px;}
   .month-head{background:#1565C0; padding:8px 14px; font-weight:bold; border-radius:4px 4px 0 0;}
+  /* Tabelle dettaglio mese: layout fisso così TUTTE le colonne (Cessionario incluso)
+     restano allineate da un mese all'altro, indipendentemente dal contenuto. */
   table.detail-table{table-layout:fixed;}
   table.detail-table th, table.detail-table td{white-space:normal; overflow-wrap:anywhere;}
   .empty{padding:24px; color:var(--fg-muted); font-style:italic; text-align:center;}
+  /* Log */
   .log-section{padding:10px 24px;}
   .log-title{color:var(--fg-label); font-weight:bold; font-size:13px; margin-bottom:4px;}
   .log-title .dot{color:var(--fg-log);}
@@ -100,7 +106,7 @@
 
 <div class="toolbar">
   <button class="tb b-load" id="btnLoad"><span class="btn-emoji">📄</span>Carica File XML / P7M </button>
-  <button class="tb b-load" id="btnLoadDir"><span class="btn-emoji" style="font-size: 14px; margin-top: -4%;">📂</span>Carica Cartella<img class="btn-emoji" style="margin-left:7px;height:1.4em;vertical-align:middle;position:relative;top:0px" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAYAAAA6/NlyAAAACXBIWXMAAAsTAAALEwEAmpwYAAACC0lEQVR4nO3Uv0sbYRwG8AdKCpoO7Z/RQRAnf0y2pZsdNB3UVYSQIQp5z2gNCTWIIC5FAqIiQpshlhYEf4BDCT36BwgdQoeWDl0KijpotfDIvYqgRj1N4nHvfR94CPcNB++Hu/sCEolEIpFIJBJJbUOFDBVYUROYYT9CCAxY6W4wiScIEJhM4ActPEVgwEqjt5jACwQGrHT/UyGOwICTID+AtK9vej5DKF6qM7/pXt2vyHgPfgty1cVhbTA6WR7szGsGLvUhVzXsO5BFd9hqgEt55LwBJ929whe7uQjmM5frzGsG/pPFZ86AFXXt9thq9G5POI+cF4etxtLyHTjqyTecFzDvq54srZKH4ErrO3BalhbN/oajQQNvytLCreo7cFqWFs3+hqNBA7/MFsqCnblxYHu5jQ/UUVmwM/+23GIWuH18XeNCap+DqU4upMOMpyIMWQd6/nxi1SxwvbWrYc9GZvn7E3hUhP5tH5nT8/DQjlngulPwq+zcuXnH2Lye11mGgRuH1zTsoXXApUKEe8VHLBRen73STcMrZoGnp1qvXlrWIXNTzWaB/66AA6kI663tc9iwtcXBVJf+3ygw7ZMltTj2mLHRXna/GWJstEdfO3M39/sOTBv89wX8uQR+fw/++nhy7fZeX4JZQQXsJgK2/VMBu0ngwAAaAHT7tM7ZBSyRSCQSiQSe5hhUnStIw4VMxQAAAABJRU5ErkJggg=="></button>
+  <button class="tb b-load" id="btnLoadDir"><img class="folder-ico" alt="Cartella" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAYAAAA6/NlyAAAACXBIWXMAAAsTAAALEwEAmpwYAAABJElEQVR4nO3SIU4DQRyF8Y8EA3dAgAVcLwO6XIB0qCFQi28qCAmqDQTFAVA7Gr+kEmyDQz6yPcFsut1l2Pclz/9/kwHnnHPOOee2mwJjjVhttMC1YIccUmCigBrYs27Zp0dgKfCuSw7oEVga8aXAgN6Awxr9oxHn9AZ8hfSIVPCtyGprKxh3D75BekWKLaxgUhu8vGDaGPYO6a0lbETLJ6a1weWQWSNf+GH94q1hq5ULZrXBnxNeNEUbra0v3AT4Y859F8d2Bi4XzLo+3OBosAyOBqdlcMxnBqdkcMxnBqdkcMxnBqdkcMxnBqdkcMxnBqdkcMxnBqdkcMxnBqdkcPzn4JMjBseHDHNcdXttMHAKnGW66vba7QJ7ma663TnnnOOP9wtmZXT6UUf0jwAAAABJRU5ErkJggg==">Carica Cartella<img class="zip-ico" alt="ZIP" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAYAAAA6/NlyAAAACXBIWXMAAAsTAAALEwEAmpwYAAACC0lEQVR4nO3Uv0sbYRwG8AdKCpoO7Z/RQRAnf0y2pZsdNB3UVYSQIQp5z2gNCTWIIC5FAqIiQpshlhYEf4BDCT36BwgdQoeWDl0KijpotfDIvYqgRj1N4nHvfR94CPcNB++Hu/sCEolEIpFIJBJJbUOFDBVYUROYYT9CCAxY6W4wiScIEJhM4ActPEVgwEqjt5jACwQGrHT/UyGOwICTID+AtK9vej5DKF6qM7/pXt2vyHgPfgty1cVhbTA6WR7szGsGLvUhVzXsO5BFd9hqgEt55LwBJ929whe7uQjmM5frzGsG/pPFZ86AFXXt9thq9G5POI+cF4etxtLyHTjqyTecFzDvq54srZKH4ErrO3BalhbN/oajQQNvytLCreo7cFqWFs3+hqNBA7/MFsqCnblxYHu5jQ/UUVmwM/+23GIWuH18XeNCap+DqU4upMOMpyIMWQd6/nxi1SxwvbWrYc9GZvn7E3hUhP5tH5nT8/DQjlngulPwq+zcuXnH2Lye11mGgRuH1zTsoXXApUKEe8VHLBRen73STcMrZoGnp1qvXlrWIXNTzWaB/66AA6kI663tc9iwtcXBVJf+3ygw7ZMltTj2mLHRXna/GWJstEdfO3M39/sOTBv89wX8uQR+fw/++nhy7fZeX4JZQQXsJgK2/VMBu0ngwAAaAHT7tM7ZBSyRSCQSiQSe5hhUnStIw4VMxQAAAABJRU5ErkJggg=="></button>
   <button class="tb b-open" id="btnExport">📊&nbsp;&nbsp;Esporta Excel</button>
   <button class="tb b-clr" id="btnClear">🗑&nbsp;&nbsp;Pulisci</button>
   <input type="file" id="fileInput" multiple accept=".xml,.p7m,.zip,.XML,.P7M,.ZIP" style="display:none">
@@ -139,81 +145,42 @@
 
 <script>
 "use strict";
+// ─── COSTANTI ────────────────────────────────────────────────────────────────
 const MESI = {1:"Gennaio",2:"Febbraio",3:"Marzo",4:"Aprile",5:"Maggio",6:"Giugno",
   7:"Luglio",8:"Agosto",9:"Settembre",10:"Ottobre",11:"Novembre",12:"Dicembre"};
 const MODALITA_LABEL = {"MP12":"RIBA","MP19":"SEPA Direct Debit"};
 
 let FATTURE = [];
-let ANNO = "2026";
+let ANNO = "2026";   // anno mostrato/etichettato, modificabile dall'header
 
-function estrai_xml(buffer) {
+// ─── ESTRAZIONE XML DA P7M / XML ─────────────────────────────────────────────
+// Legge i byte (ArrayBuffer) e restituisce la stringa XML, come in Python.
+function estrai_xml(buffer){
   const bytes = new Uint8Array(buffer);
-  
-  const findSeq = (seq, from = 0) => {
-    outer: for (let i = from; i <= bytes.length - seq.length; i++) {
-      for (let j = 0; j < seq.length; j++) { if (bytes[i + j] !== seq[j]) continue outer; }
+  const findSeq = (seq, from=0)=>{
+    outer: for(let i=from;i<=bytes.length-seq.length;i++){
+      for(let j=0;j<seq.length;j++){ if(bytes[i+j]!==seq[j]) continue outer; }
       return i;
     }
     return -1;
   };
-  
-  const enc = s => Array.from(s).map(c => c.charCodeAt(0));
-  let xmlStart = findSeq(enc("<?xml"));
-  if (xmlStart === -1) xmlStart = findSeq(enc("<FatturaElettronica"));
-  
-  if (xmlStart === -1) throw new Error("Nessun XML trovato nel file");
-
-  if (bytes[0] === 0x30 && xmlStart > 4) {
-    let contentLenIdx = -1;
-    for (let i = xmlStart - 1; i > 0; i--) {
-      if (bytes[i] === 0x04) {
-        contentLenIdx = i + 1;
-        break;
-      }
-    }
-    
-    if (contentLenIdx !== -1 && contentLenIdx < xmlStart) {
-      let lenByte = bytes[contentLenIdx];
-      let dataLen = 0;
-      let headerSize = 1;
-      
-      if ((lenByte & 0x80) === 0) {
-        dataLen = lenByte;
-        headerSize += 1;
-      } else {
-        let numBytes = lenByte & 0x7F;
-        headerSize += 1 + numBytes;
-        for (let j = 0; j < numBytes; j++) {
-          dataLen = (dataLen << 8) | bytes[contentLenIdx + 1 + j];
-        }
-      }
-      
-      if (dataLen > 0 && (xmlStart + dataLen - (xmlStart - (contentLenIdx - 1) + headerSize)) <= bytes.length) {
-        const xmlEnd = xmlStart + dataLen - (xmlStart - contentLenIdx + headerSize - 1);
-        const cleanSlice = bytes.subarray(xmlStart, xmlEnd);
-        try {
-          return new TextDecoder("utf-8", { fatal: true }).decode(cleanSlice);
-        } catch (e) {
-          return new TextDecoder("latin1").decode(cleanSlice);
-        }
-      }
-    }
-  }
-
-  let xmlEnd = -1;
-  for (let i = bytes.length - 1; i >= 0; i--) { 
-    if (bytes[i] === 62) { xmlEnd = i + 1; break; } 
-  }
-  if (xmlEnd === -1) xmlEnd = bytes.length;
-  
-  const slice = bytes.subarray(xmlStart, xmlEnd);
-  try {
-    return new TextDecoder("utf-8", { fatal: true }).decode(slice);
-  } catch (e) {
+  const enc = s => Array.from(s).map(c=>c.charCodeAt(0));
+  let start = findSeq(enc("<?xml"));
+  if(start === -1) start = findSeq(enc("<FatturaElettronica"));
+  if(start === -1) throw new Error("Nessun XML trovato nel file");
+  // end = ultimo '>' (62) + 1
+  let end = -1;
+  for(let i=bytes.length-1;i>=0;i--){ if(bytes[i]===62){ end=i+1; break; } }
+  if(end === -1) end = bytes.length;
+  const slice = bytes.subarray(start, end);
+  try{
+    return new TextDecoder("utf-8",{fatal:true}).decode(slice);
+  }catch(e){
     return new TextDecoder("latin1").decode(slice);
   }
 }
 
+// ─── HELPERS XML ─────────────────────────────────────────────────────────────
 function reEsc(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"); }
 
 function _tag(xml, tag, def=""){
@@ -248,7 +215,7 @@ function fmt_data(iso){
 }
 function mese_da_iso(iso){
   if(!iso) return null;
-  const m = iso.trim().match(/^\d{4}-\d{2}-\d{2}/);
+  const m = iso.trim().match(/^\d{4}-(\d{2})-\d{2}/);
   if(m){ const v=parseInt(m[1],10); return (v>=1&&v<=12)?v:null; }
   return null;
 }
@@ -268,16 +235,25 @@ function estrai_importo_pagamento(block){
   if(m2) return m2[1];
   return "0.00";
 }
+// Estrae la data di scadenza in modo robusto.
+// Nei P7M il tag di APERTURA può essere corrotto da byte di firma illegali
+// (es. <DataScadenz\x04\x82..aPagamento>), quindi il _tag classico fallisce e
+// la rata sparisce dallo scadenzario. Il closing tag </DataScadenzaPagamento>
+// è invece sempre integro: lo usiamo come àncora.
 function estrai_data_scadenza(block){
+  // Strategia 1: tag di apertura integro
   let m = block.match(/<DataScadenzaPagamento[^>]*>\s*(\d{4}-\d{2}-\d{2})\s*<\/DataScadenzaPagamento>/);
   if(m) return m[1];
+  // Strategia 2: àncora sul closing tag (apertura corrotta dalla firma P7M)
   let m2 = block.match(/(\d{4}-\d{2}-\d{2})\s*<\/DataScadenzaPagamento>/);
   if(m2) return m2[1];
+  // Strategia 3: qualunque data ISO nel blocco di pagamento
   let m3 = block.match(/(\d{4}-\d{2}-\d{2})/);
   if(m3) return m3[1];
   return "";
 }
 
+// ─── PARSER FATTURA ──────────────────────────────────────────────────────────
 function parse_fattura(filename, buffer){
   const result = {
     filename, ced_nome:"",ced_piva:"",ced_cf:"",ced_indirizzo:"",ced_cap:"",ced_comune:"",ced_provincia:"",
@@ -373,6 +349,7 @@ function parse_fattura(filename, buffer){
   return result;
 }
 
+// ─── LOG / STATUS ────────────────────────────────────────────────────────────
 const logEl=document.getElementById("log");
 const statusEl=document.getElementById("status");
 function log(msg){
@@ -383,6 +360,7 @@ function log(msg){
 function setStatus(s){ statusEl.textContent=s; }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
+// ─── CARICAMENTO FILE ────────────────────────────────────────────────────────
 function readFileBuffer(file){
   return new Promise((res,rej)=>{
     const r=new FileReader();
@@ -392,6 +370,8 @@ function readFileBuffer(file){
   });
 }
 
+// Espande eventuali .zip: ne estrae i .xml/.p7m (anche nelle sottocartelle)
+// e li restituisce come oggetti File, lasciando passare invariati gli altri file.
 async function expandZips(files){
   const out=[];
   for(const f of files){
@@ -461,6 +441,7 @@ async function handleFiles(fileList){
   renderAll();
 }
 
+// ─── RENDER FOGLIO 1 – TRASCRIZIONI ──────────────────────────────────────────
 function renderV1(){
   const el=document.getElementById("v1");
   if(!FATTURE.length){ el.innerHTML='<div class="empty">Nessuna fattura caricata.</div>'; return; }
@@ -490,6 +471,7 @@ function renderV1(){
   el.innerHTML=h;
 }
 
+// ─── RENDER FOGLIO 2 – RIBE / SEPA ───────────────────────────────────────────
 function renderV2(){
   const el=document.getElementById("v2");
   const rs=FATTURE.filter(f=>f.ha_ribe_sepa);
@@ -500,6 +482,8 @@ function renderV2(){
       .map(t=>`<th>${t}</th>`).join("")+'</tr></thead><tbody>';
   for(const ft of rs){
     ft.pagamenti.forEach((p,i)=>{
+      // Le colonne fisse vengono ripetute su ogni rata: così tutte le 14 colonne
+      // restano sempre allineate (niente rowspan che sfalsa le righe).
       const sub = i>0 ? ' style="color:var(--fg-muted)"' : '';
       const badge=p.codice==="MP19"?'<span class="badge b-sepa">SEPA</span>':'<span class="badge b-riba">RIBA</span>';
       h+='<tr>'
@@ -514,6 +498,7 @@ function renderV2(){
   el.innerHTML=h;
 }
 
+// ─── RENDER FOGLIO 3 – RIBA × MESI ───────────────────────────────────────────
 function aggregaMesi(){
   const imp={},cnt={},rate={};
   for(let m=1;m<=12;m++){imp[m]=0;cnt[m]=0;rate[m]=[];}
@@ -529,7 +514,6 @@ function aggregaMesi(){
   }
   return {imp,cnt,rate};
 }
-
 function renderV3(){
   const el=document.getElementById("v3");
   if(!FATTURE.length){ el.innerHTML='<div class="empty">Nessuna fattura caricata.</div>'; return; }
@@ -559,6 +543,7 @@ function renderV3(){
   h+=`<tr style="background:var(--navy);font-weight:bold"><td>TOTALE ANNUALE ${ANNO}</td><td class="num">${tot_cnt}</td><td class="eur" style="color:#fff">€ ${fmtEur(totale_anno)}</td><td></td><td class="num">100%</td></tr>`;
   h+='</tbody></table></div>';
 
+  // Dettaglio rate per mese
   h+='<h3 style="margin-top:18px;color:#90CAF9">▼ Dettaglio rate per mese</h3>';
   for(let m=1;m<=12;m++){
     if(!rate[m].length) continue;
@@ -581,13 +566,16 @@ function renderV3(){
 
 function renderAll(){ renderV1(); renderV2(); renderV3(); }
 
+// ─── EXPORT EXCEL (SheetJS) ──────────────────────────────────────────────────
+// Calcola le larghezze colonna (in caratteri) dal contenuto, così in Excel
+// non viene tagliato nulla. minW/maxW limitano i casi estremi.
 function autoCols(aoa, minW=10, maxW=60){
   const w=[];
   for(const row of aoa){
     if(!row) continue;
     row.forEach((cell,ci)=>{
       let len;
-      if(typeof cell==="number") len=fmtEur(cell).length+3;
+      if(typeof cell==="number") len=fmtEur(cell).length+3;       // spazio per " €"
       else len=String(cell==null?"":cell).length;
       w[ci]=Math.max(w[ci]||0, len);
     });
@@ -595,6 +583,7 @@ function autoCols(aoa, minW=10, maxW=60){
   return w.map(x=>({wch:Math.max(minW, Math.min((x||0)+2, maxW))}));
 }
 
+// Palette e helper di stile (richiede xlsx-js-style)
 const HX={navy:"1A3C5E",blue:"0D47A1",vblue:"BBDEFB",e3f2:"EAF3FC",white:"FFFFFF",
   light:"F4F7FB",green:"2E7D32",lgreen:"E9F6EC",dgreen:"1B5E20",orange:"E65100",
   loran:"FFF3E0",gold:"FFF2C2",red:"B71C1C",purple:"5E35B1",teal:"00838F",
@@ -606,7 +595,7 @@ function FILL(rgb){return{patternType:"solid",fgColor:{rgb:rgb}};}
 function AL(h,wrap){return{horizontal:h||"left",vertical:"center",wrapText:!!wrap};}
 const _bd={style:"thin",color:{rgb:"D5DBE2"}};
 const BORD={top:_bd,bottom:_bd,left:_bd,right:_bd};
-
+// Applica stile (e opz. formato numero) a una cella, creandola se manca
 function SS(ws,r,c,style,z){
   const a=XLSX.utils.encode_cell({r:r,c:c});
   if(!ws[a]) ws[a]={t:"s",v:""};
@@ -620,6 +609,7 @@ function exportExcel(){
   if(typeof XLSX==="undefined" || !XLSX.utils){ alert("Libreria Excel non caricata (CDN bloccata?)."); return; }
   const wb=XLSX.utils.book_new();
 
+  // ═══════════════ FOGLIO 1 — TRASCRIZIONI ═══════════════
   const head1=['File','N. Documento','Data','Tipo','Causale',
     'Ragione Sociale','P.IVA','C.F.','Indirizzo','CAP','Comune','Prov.',
     'Ragione Sociale','P.IVA','C.F.','Indirizzo','CAP','Comune','Prov.','Cod. Dest.',
@@ -640,18 +630,19 @@ function exportExcel(){
     {s:{r:1,c:20},e:{r:1,c:23}},{s:{r:1,c:24},e:{r:1,c:25}},{s:{r:1,c:26},e:{r:1,c:26}},
   ];
   ws1['!rows']=[{hpt:30},{hpt:22},{hpt:30}];
+  // Titolo
   const t1=SS(ws1,0,0,{font:FNT({sz:16,bold:true,color:HX.white}),fill:FILL(HX.navy),alignment:AL("left")});
   t1.v=`Scadenziario RIBA e SDD  ·  Trascrizioni  ·  ${ANNO}`; t1.t="s";
-  
+  // Riga gruppi
   [[0,"DOCUMENTO",HX.navy],[5,"CEDENTE / PRESTATORE",HX.dgreen],[12,"CESSIONARIO / COMMITTENTE",HX.red],
    [20,"IMPORTI",HX.purple],[24,"DDT",HX.orange],[26,"PAG.",HX.teal]].forEach(([c,txt,col])=>{
     const g=SS(ws1,1,c,{font:FNT({sz:11,bold:true,color:HX.white}),fill:FILL(col),alignment:AL("center"),border:BORD});
     g.v=txt; g.t="s";
   });
-  
+  // Intestazioni colonne
   const hcol1=c=> c<=4?HX.navy : c<=11?HX.dgreen : c<=19?HX.red : c<=23?HX.purple : c<=25?HX.orange : HX.teal;
   for(let c=0;c<27;c++) SS(ws1,2,c,{font:FNT({sz:9,bold:true,color:HX.white}),fill:FILL(hcol1(c)),alignment:AL("center",true),border:BORD});
-  
+  // Dati
   const num1=new Set([20,22,23]);
   for(let r=3;r<data1.length;r++){
     const zebra=(r%2===1)?HX.light:HX.white;
@@ -664,6 +655,7 @@ function exportExcel(){
   }
   XLSX.utils.book_append_sheet(wb,ws1,"Trascrizioni");
 
+  // ═══════════════ FOGLIO 2 — RIBE / SEPA ═══════════════
   const head2=['File','N. Documento','Data','Cedente','P.IVA Ced.','Cessionario','P.IVA Ces.',
     'Modalità','Cod.','Data Scad.','Giorni','Banca','IBAN','Importo (€)'];
   const data2=[ new Array(14).fill(""), head2 ];
@@ -699,6 +691,7 @@ function exportExcel(){
   }
   XLSX.utils.book_append_sheet(wb,ws2,"RIBE_SEPA");
 
+  // ═══════════════ FOGLIO 3 — RIBA x MESI ═══════════════
   const {imp,cnt,rate}=aggregaMesi();
   const totale_anno=Object.values(imp).reduce((a,b)=>a+b,0);
   const tot_cnt=Object.values(cnt).reduce((a,b)=>a+b,0);
@@ -784,16 +777,18 @@ function exportExcel(){
   setStatus(`✅  Excel esportato: ${name}`);
 }
 
+// ─── EVENTI UI ───────────────────────────────────────────────────────────────
+// Anno editabile (header) — persistito in localStorage, usato in tutte le etichette
 const annoInput=document.getElementById("annoInput");
 try{ const salvato=localStorage.getItem("scad_anno"); if(salvato) ANNO=salvato; }catch(e){}
 annoInput.value=ANNO;
 annoInput.addEventListener("input",()=>{ annoInput.value=annoInput.value.replace(/\D/g,"").slice(0,4); });
 function commitAnno(){
   let v=annoInput.value.trim();
-  if(!/^\d{4}$/.test(v)) v=ANNO;
+  if(!/^\d{4}$/.test(v)) v=ANNO;          // se non sono 4 cifre, ripristina il precedente
   ANNO=v; annoInput.value=v;
   try{ localStorage.setItem("scad_anno",ANNO); }catch(e){}
-  if(FATTURE.length) renderAll();
+  if(FATTURE.length) renderAll();          // aggiorna le etichette con il nuovo anno
 }
 annoInput.addEventListener("change",commitAnno);
 annoInput.addEventListener("blur",commitAnno);
@@ -801,7 +796,7 @@ annoInput.addEventListener("keydown",e=>{ if(e.key==="Enter") annoInput.blur(); 
 
 document.getElementById("btnLoad").onclick=()=>document.getElementById("fileInput").click();
 document.getElementById("fileInput").onchange=async e=>{
-  const expanded=await expandZips(Array.from(e.target.files));
+  const expanded=await expandZips(Array.from(e.target.files));   // apre eventuali ZIP
   const validi=expanded.filter(f=>/\.(xml|p7m)$/i.test(f.name));
   e.target.value="";
   if(validi.length) handleFiles(validi);
@@ -809,6 +804,7 @@ document.getElementById("fileInput").onchange=async e=>{
 };
 document.getElementById("btnLoadDir").onclick=()=>document.getElementById("dirInput").click();
 document.getElementById("dirInput").onchange=async e=>{
+  // Una cartella restituisce TUTTI i file: apri gli ZIP e tieni solo .xml / .p7m
   const all=Array.from(e.target.files);
   const expanded=await expandZips(all);
   const validi=expanded.filter(f=>/\.(xml|p7m)$/i.test(f.name));
@@ -832,7 +828,10 @@ document.querySelectorAll(".tab").forEach(tab=>{
     document.getElementById(tab.dataset.view).classList.add("active");
   };
 });
-
+// ─── DRAG & DROP (file singoli + cartelle, ricorsivo) ────────────────────────
+// IMPORTANTE: per far scattare il "drop" bisogna chiamare preventDefault su
+// dragenter/dragover/drop. Lo facciamo a livello di window così copre tutta la
+// pagina, qualunque elemento ci sia sotto il cursore.
 ["dragenter","dragover","dragleave","drop"].forEach(ev=>
   window.addEventListener(ev, e=>e.preventDefault(), false));
 window.addEventListener("dragover", e=>{
@@ -843,6 +842,7 @@ window.addEventListener("dragleave", e=>{
   if(e.relatedTarget===null) document.body.classList.remove("drag-over");
 });
 
+// Legge ricorsivamente una FileSystemEntry (file o directory) e raccoglie i File
 function readEntry(entry, out){
   return new Promise(resolve=>{
     if(entry.isFile){
@@ -853,7 +853,7 @@ function readEntry(entry, out){
         reader.readEntries(async entries=>{
           if(!entries.length){ resolve(); return; }
           for(const en of entries) await readEntry(en, out);
-          readBatch();
+          readBatch(); // le directory grandi vanno lette a blocchi finché non è vuoto
         }, ()=>resolve());
       };
       readBatch();
@@ -864,7 +864,10 @@ function readEntry(entry, out){
 window.addEventListener("drop", async e=>{
   document.body.classList.remove("drag-over");
   const dt=e.dataTransfer;
+  // 1) Cattura SUBITO la lista file: funziona sempre, anche da file:// (drop di file).
   const directFiles = (dt && dt.files) ? Array.from(dt.files) : [];
+  // 2) Prova il percorso "entry" per le CARTELLE (funziona solo via http/https;
+  //    da file:// il browser lo blocca → restiamo sul fallback directFiles).
   let collected=[];
   let folderDropped=false;
   try{
@@ -883,7 +886,7 @@ window.addEventListener("drop", async e=>{
   }
   const source0 = collected.length ? collected : directFiles;
   log("─".repeat(60));
-  const source = await expandZips(source0);
+  const source = await expandZips(source0);            // apre eventuali ZIP trascinati
   const validi = source.filter(f=>/\.(xml|p7m)$/i.test(f.name));
   log(`📥  Drop: ${source.length} file → ${validi.length} XML / P7M validi`);
   if(validi.length){ handleFiles(validi); return; }
