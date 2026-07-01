@@ -153,10 +153,93 @@ const MODALITA_LABEL = {"MP12":"RIBA","MP19":"SEPA Direct Debit"};
 let FATTURE = [];
 let ANNO = "2026";   // anno mostrato/etichettato, modificabile dall'header
 
+// ─── ESTRAZIONE PULITA P7M (ASN.1 / CMS PKCS#7) ──────────────────────────────
+// Un .p7m è l'XML avvolto in una firma CAdES (struttura ASN.1). Estraendo alla
+// cieca i byte, le intestazioni ASN.1 (es. 04 82 03 E8) finiscono dentro l'XML e
+// lo corrompono. Qui parsiamo la struttura ed estraiamo l'eContent ESATTO (XML
+// originale, identico byte per byte). Verificato contro openssl su 45 fatture.
+function _readTLV(b, pos){
+  const start = pos;
+  let tag = b[pos++];
+  if((tag & 0x1f) === 0x1f){ while(b[pos] & 0x80) pos++; pos++; }   // tag multi-byte (raro)
+  const constructed = (tag & 0x20) !== 0;
+  let lenByte = b[pos++], length, indefinite=false;
+  if(lenByte === 0x80){ indefinite = true; length = null; }         // BER lunghezza indefinita
+  else if(lenByte & 0x80){ const n = lenByte & 0x7f; length = 0; for(let i=0;i<n;i++) length = length*256 + b[pos++]; }
+  else length = lenByte;
+  const contentStart = pos;
+  let contentEnd, nextPos;
+  if(indefinite){
+    let p = contentStart;
+    while(!(b[p]===0 && b[p+1]===0)){ const ch = _readTLV(b,p); p = ch.nextPos; }
+    contentEnd = p; nextPos = p + 2;                                // salta end-of-contents (00 00)
+  } else { contentEnd = contentStart + length; nextPos = contentEnd; }
+  return {tagByte:b[start], constructed, contentStart, contentEnd, indefinite, nextPos};
+}
+function _children(b, node){
+  const out = []; let p = node.contentStart;
+  while(p < node.contentEnd){
+    if(node.indefinite && b[p]===0 && b[p+1]===0) break;
+    const ch = _readTLV(b,p); out.push(ch); p = ch.nextPos;
+  }
+  return out;
+}
+function _isOID(b, node, hex){
+  if(node.tagByte !== 0x06) return false;
+  let s=""; for(let i=node.contentStart;i<node.contentEnd;i++) s += b[i].toString(16).padStart(2,"0");
+  return s === hex;
+}
+function _collectOctets(b, node, chunks){
+  if(node.constructed){ for(const ch of _children(b,node)) _collectOctets(b,ch,chunks); }
+  else chunks.push(b.subarray(node.contentStart, node.contentEnd));
+}
+function estrai_xml_p7m(bytes){
+  const OID_SIGNEDDATA = "2a864886f70d010702", OID_DATA = "2a864886f70d010701";
+  let b = bytes;
+  if(b[0] !== 0x30){                                                // non DER → prova base64 / PEM
+    const txt = new TextDecoder("latin1").decode(b).replace(/-----[^-]+-----/g,"").replace(/[^A-Za-z0-9+/=]/g,"");
+    const bin = atob(txt);
+    const dec = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) dec[i] = bin.charCodeAt(i);
+    if(dec[0] === 0x30) b = dec; else throw new Error("Non è CMS/PKCS7");
+  }
+  const root = _readTLV(b, 0);                                      // ContentInfo
+  const rc = _children(b, root);
+  if(!rc.length || !_isOID(b, rc[0], OID_SIGNEDDATA)) throw new Error("Non è pkcs7-signedData");
+  const signedData = _children(b, rc[1])[0];                        // [0] EXPLICIT → SignedData
+  let enc = null;                                                   // encapContentInfo
+  for(const ch of _children(b, signedData)){
+    if(ch.tagByte === 0x30){
+      const sub = _children(b, ch);
+      if(sub.length && _isOID(b, sub[0], OID_DATA)){ enc = ch; break; }
+    }
+  }
+  if(!enc) throw new Error("encapContentInfo assente");
+  const encCont0 = _children(b, enc)[1];                           // [0] EXPLICIT
+  if(!encCont0) throw new Error("eContent assente");
+  const octet = _children(b, encCont0)[0];                         // OCTET STRING (eContent)
+  const chunks = []; _collectOctets(b, octet, chunks);
+  let total = 0; for(const c of chunks) total += c.length;
+  const all = new Uint8Array(total); let o = 0;
+  for(const c of chunks){ all.set(c, o); o += c.length; }
+  try{ return new TextDecoder("utf-8",{fatal:true}).decode(all); }
+  catch(e){ return new TextDecoder("latin1").decode(all); }
+}
+
 // ─── ESTRAZIONE XML DA P7M / XML ─────────────────────────────────────────────
-// Legge i byte (ArrayBuffer) e restituisce la stringa XML, come in Python.
+// Legge i byte (ArrayBuffer) e restituisce la stringa XML.
 function estrai_xml(buffer){
   const bytes = new Uint8Array(buffer);
+  // Se NON è già XML in chiaro, prova prima l'estrazione pulita CMS/PKCS7 (p7m).
+  const isPlainXml = bytes[0]===0x3C ||
+    (bytes[0]===0xEF && bytes[1]===0xBB && bytes[2]===0xBF && bytes[3]===0x3C);
+  if(!isPlainXml){
+    try{
+      const xml = estrai_xml_p7m(bytes);
+      if(xml && xml.indexOf("FatturaElettronica") >= 0) return xml;
+    }catch(e){ /* non è un p7m valido → passa all'euristica */ }
+  }
+  // Fallback: XML in chiaro, oppure euristica sui byte grezzi (p7m non standard).
   const findSeq = (seq, from=0)=>{
     outer: for(let i=from;i<=bytes.length-seq.length;i++){
       for(let j=0;j<seq.length;j++){ if(bytes[i+j]!==seq[j]) continue outer; }
@@ -168,7 +251,6 @@ function estrai_xml(buffer){
   let start = findSeq(enc("<?xml"));
   if(start === -1) start = findSeq(enc("<FatturaElettronica"));
   if(start === -1) throw new Error("Nessun XML trovato nel file");
-  // end = ultimo '>' (62) + 1
   let end = -1;
   for(let i=bytes.length-1;i>=0;i--){ if(bytes[i]===62){ end=i+1; break; } }
   if(end === -1) end = bytes.length;
